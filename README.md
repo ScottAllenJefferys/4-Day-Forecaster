@@ -1,3 +1,3 @@
 # 4 Day Forecaster
 
-[Heroku Link](https://buildweek-spotify.herokuapp.com/)
+[Heroku Link](https://four-day-forecaster.herokuapp.com/)
