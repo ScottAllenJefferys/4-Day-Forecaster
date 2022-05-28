@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Stock Forecaster</title>
+    <link rel="stylesheet" href="https://unpkg.com/picnic" />
+</head>
+
+<body>
+    <!--NAVIGATION BAR-->
+    <nav>
+        <!--BUTTON TO HOME ROUTE-->
+        <a href="/" class="brand"><span>Stock Forecaster</span></a>
+
+        <!-- MAKES MENU BUTTONS BELOW RESPONSIVE-->
+        <input id="bmenub" type="checkbox" class="show">
+        <label for="bmenub" class="burger pseudo button">Menu</label>
+
+        <!--MENU BUTTONS-->
+        <div class="menu">
+        </div>
+    </nav>
+
+    <!--USER INPUT-->
+    <article class="flex two" style="padding: 3em 1em;">
+        <div>
+            <!--LEFT SCREEN DIVISION-->
+            <h1>Search For Stock Data</h1>
+            <form action="/" autocomplete="off" method="post">
+                <input type="text" name="ticker" placeholder="Enter Ticker Here">
+                <input type="submit" value="Search">
+            </form>
+        </div>
+        <div>
+            <!--RIGHT SCREEN DIVISION-->
+            <h1>{{message}}</h1>
+        </div>
+    </article>
+    {% if image is not none %}
+    <img src="{{ image }}" />
+    {% endif %}
+</body>
+
+</html>
