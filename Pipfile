@@ -16,6 +16,7 @@ keras-tuner = "*"
 flask = "*"
 flask-pymongo = "*"
 pymongo = {extras = ["srv"], version = "*"}
+gunicorn = "*"
 
 [dev-packages]
 autopep8 = "*"
