@@ -3,6 +3,7 @@ import requests
 from io import StringIO
 import numpy as np
 import pandas as pd
+from sklearn.metrics import mean_absolute_error
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -47,7 +48,7 @@ def query(ticker, window=24):
 
 
 def get_data(ticker):
-    num_months_in_past = 1
+    num_months_in_past = 3
     for i in range(num_months_in_past):
         if i == 0:
             df = query(ticker, i+1)
@@ -68,33 +69,78 @@ def scale_data(df):
     return pd.DataFrame.from_dict(scaled_data), scaler_dict
 
 
-def invert_scaling(data_vector, feat_name, scaler_dict):
-    return scaler_dict[feat_name].inverse_transform(data_vector.reshape(-1, 1))
+def invert_scaling(data, feat_name, scaler_dict):
+    return scaler_dict[feat_name].inverse_transform(data)
 
 
-def create_sequence(scaled_dataframe):
-
+def create_sequences(scaled_dataframe):
     n_samples = scaled_dataframe.shape[0]
     n_cols = scaled_dataframe.shape[1]
+
+    # Sequence for Future Predictions
     starting_index = n_samples-1-LOOK_BACK
-    X = scaled_dataframe.to_numpy()[starting_index:starting_index+LOOK_BACK]
+    stopping_index = starting_index+LOOK_BACK
+    X = scaled_dataframe.to_numpy()[starting_index:stopping_index]
     X = X.reshape(1, LOOK_BACK, n_cols)
-    return X
+
+    # Sequences for Past Error
+    X_prior = None
+    while True:
+        stopping_index = starting_index
+        starting_index = starting_index-LOOK_BACK
+        if starting_index < 0:
+            break
+
+        # Divide Data Into Training and Validation Sequences
+        x_data = scaled_dataframe.to_numpy()[starting_index:stopping_index]
+        x_data = x_data.reshape(1, LOOK_BACK, n_cols)
+        y_data = scaled_dataframe[TARGET].to_numpy(
+        )[stopping_index:stopping_index+LOOK_AHEAD]
+        y_data = y_data.reshape(1, LOOK_AHEAD)
+
+        # Combine Into Tensors
+        if X_prior is None:
+            X_prior = x_data
+            Y_prior = y_data
+        else:
+            X_prior = np.vstack((X_prior, x_data))
+            Y_prior = np.vstack((Y_prior, y_data))
+
+    return X, X_prior, Y_prior
 
 
 def get_predictions(sequence_array, scaler_dict):
-
     pretrained_model = tensorflow.keras.models.load_model(
         f"{MODEL_FOLDER}/{MODEL_NAME}")
 
     scaled_predictions = pretrained_model.predict(sequence_array)
-
     predictions = invert_scaling(scaled_predictions, TARGET, scaler_dict)
-
     return predictions
 
 
-def create_figure(ticker, raw_data, predictions):
+def get_pred_errors_by_hour_ahead(past_X_seq, past_Y_seq, scaler_dict):
+    pretrained_model = tensorflow.keras.models.load_model(
+        f"{MODEL_FOLDER}/{MODEL_NAME}")
+    scaled_predictions = pretrained_model.predict(past_X_seq)
+    predictions = invert_scaling(
+        scaled_predictions, TARGET, scaler_dict)
+    Y_observed = invert_scaling(past_Y_seq, TARGET, scaler_dict)
+
+    # print("PREDICTIONS SHAPE: ", predictions.shape)
+    # print("OBSERVATIONS SHAPE: ", past_Y_seq.shape)
+
+    n_prediciton_windows = predictions.shape[0]
+    absolute_errors_by_hour = np.repeat([0.0], LOOK_AHEAD)
+    for i in range(n_prediciton_windows):
+        absolute_errors_by_hour += np.absolute(
+            predictions[i] - Y_observed[i])
+    mean_absolute_errors_by_hour = (
+        absolute_errors_by_hour) / n_prediciton_windows
+
+    return mean_absolute_errors_by_hour
+
+
+def create_figure(ticker, raw_data, predictions, errors):
 
     figure = Figure(figsize=(20, 5))
     axis = figure.add_subplot(1, 1, 1)
@@ -109,16 +155,24 @@ def create_figure(ticker, raw_data, predictions):
         c="c"
     )
     s = raw_data.index[-1]
+    # axis.set_ylim(bottom=0)
     axis.set_xlim(left=s-timedelta(hours=11*24),
                   right=s+timedelta(hours=4*24))
     prediction_date_range = pd.date_range(start=s,
                                           freq="H",
                                           periods=LOOK_AHEAD)
-    print("Prediction Date Range: ", prediction_date_range)
     axis.plot(
         prediction_date_range,
-        predictions,
-        label="Predicted Closing Price",
+        predictions+1.0*errors,
+        label="Predicted Upper Bound",
+        linestyle="dashed",
+        c="m"
+    )
+    axis.plot(
+        prediction_date_range,
+        predictions-1.0*errors,
+        label="Predicted Lower Bound",
+        linestyle="dashed",
         c="r"
     )
     axis.legend()

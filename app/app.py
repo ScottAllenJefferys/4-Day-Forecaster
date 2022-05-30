@@ -43,26 +43,40 @@ def create_app():
                 # Get Data
                 df = get_data(ticker)
 
-                print(f"TICKER: {ticker}\nSHAPE: {df.shape}")
-                print(f"STARTING DATE: {df.index[0]}")
-                print(f"ENDING DATE: {df.index[-1]}")
-
                 if df.shape[0] >= 11*24:
+
+                    print(f"TICKER: {ticker}\nSHAPE: {df.shape}")
+                    print(f"STARTING DATE: {df.index[0]}")
+                    print(f"ENDING DATE: {df.index[-1]}")
+
                     message = ""
 
                     # Scale Data
                     scaled_df, scaler_dict = scale_data(df)
 
-                    # Format as a Sequence for Model
-                    seq_array = create_sequence(scaled_df)
+                    # Format Data into Sequences
+                    last_X_seq, past_X_seq, past_Y_seq = create_sequences(
+                        scaled_df)
+                    print("PAST X SEQ SHAPE: ", past_X_seq.shape)
+                    print("PAST Y SEQ SHAPE: ", past_Y_seq.shape)
 
                     # Load Model and Get Predictions
-                    predictions = get_predictions(seq_array, scaler_dict)
+                    future_predictions = get_predictions(
+                        last_X_seq, scaler_dict).reshape(-1)
+                    print("FUTURE PREDICTIONS SHAPE: ",
+                          future_predictions.shape)
+
+                    # Approximate Model Error
+                    past_errors = get_pred_errors_by_hour_ahead(
+                        past_X_seq, past_Y_seq, scaler_dict)
+                    print("PAST ERRORS SHAPE: ", past_errors.shape)
+                    print("PAST ERROS: ", past_errors)
 
                     # Create Figure
                     figure = create_figure(ticker=ticker,
                                            raw_data=df,
-                                           predictions=predictions)
+                                           predictions=future_predictions,
+                                           errors=past_errors)
 
                     # Convert Figure to PNG Image
                     pngImage = io.BytesIO()
