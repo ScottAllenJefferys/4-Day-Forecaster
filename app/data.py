@@ -48,7 +48,7 @@ def query(ticker, window=24):
 
 
 def get_data(ticker):
-    num_months_in_past = 3
+    num_months_in_past = 5
     for i in range(num_months_in_past):
         if i == 0:
             df = query(ticker, i+1)
@@ -126,14 +126,17 @@ def get_pred_errors_by_hour_ahead(past_X_seq, past_Y_seq, scaler_dict):
         scaled_predictions, TARGET, scaler_dict)
     Y_observed = invert_scaling(past_Y_seq, TARGET, scaler_dict)
 
-    # print("PREDICTIONS SHAPE: ", predictions.shape)
-    # print("OBSERVATIONS SHAPE: ", past_Y_seq.shape)
-
     n_prediciton_windows = predictions.shape[0]
     absolute_errors_by_hour = np.repeat([0.0], LOOK_AHEAD)
     for i in range(n_prediciton_windows):
-        absolute_errors_by_hour += np.absolute(
-            predictions[i] - Y_observed[i])
+        last_error = None
+        for j in range(LOOK_AHEAD):
+            error = np.absolute(
+                predictions[i, j] - Y_observed[i, j])
+            if last_error is not None:
+                error = np.max([error, last_error])
+            absolute_errors_by_hour[j] += error
+            last_error = error
     mean_absolute_errors_by_hour = (
         absolute_errors_by_hour) / n_prediciton_windows
 
@@ -156,7 +159,7 @@ def create_figure(ticker, raw_data, predictions, errors):
     )
     s = raw_data.index[-1]
     # axis.set_ylim(bottom=0)
-    axis.set_xlim(left=s-timedelta(hours=11*24),
+    axis.set_xlim(left=s-timedelta(hours=11*24*3),
                   right=s+timedelta(hours=4*24))
     prediction_date_range = pd.date_range(start=s,
                                           freq="H",

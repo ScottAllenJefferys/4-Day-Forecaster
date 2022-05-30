@@ -43,11 +43,11 @@ def create_app():
                 # Get Data
                 df = get_data(ticker)
 
-                if df.shape[0] >= 11*24:
+                if df.shape[0] >= 11*24*3:  # At Least 3 Months of Data for Error Bounds
 
-                    print(f"TICKER: {ticker}\nSHAPE: {df.shape}")
-                    print(f"STARTING DATE: {df.index[0]}")
-                    print(f"ENDING DATE: {df.index[-1]}")
+                    # print(f"TICKER: {ticker}\nSHAPE: {df.shape}")
+                    # print(f"STARTING DATE: {df.index[0]}")
+                    # print(f"ENDING DATE: {df.index[-1]}")
 
                     message = ""
 
@@ -57,20 +57,16 @@ def create_app():
                     # Format Data into Sequences
                     last_X_seq, past_X_seq, past_Y_seq = create_sequences(
                         scaled_df)
-                    print("PAST X SEQ SHAPE: ", past_X_seq.shape)
-                    print("PAST Y SEQ SHAPE: ", past_Y_seq.shape)
+                    # print("PAST X SEQ SHAPE: ", past_X_seq.shape)
+                    # print("PAST Y SEQ SHAPE: ", past_Y_seq.shape)
 
                     # Load Model and Get Predictions
                     future_predictions = get_predictions(
                         last_X_seq, scaler_dict).reshape(-1)
-                    print("FUTURE PREDICTIONS SHAPE: ",
-                          future_predictions.shape)
 
                     # Approximate Model Error
                     past_errors = get_pred_errors_by_hour_ahead(
                         past_X_seq, past_Y_seq, scaler_dict)
-                    print("PAST ERRORS SHAPE: ", past_errors.shape)
-                    print("PAST ERROS: ", past_errors)
 
                     # Create Figure
                     figure = create_figure(ticker=ticker,
@@ -88,7 +84,7 @@ def create_app():
                         pngImage.getvalue()).decode('utf8')
                     image = pngImageB64String
                 else:
-                    message = f"No Data Found For {ticker}"
+                    message = f"No Data Found For {ticker} - Try a Different Ticker or Wait 30s for API limit to Refresh"
 
                 # Requires the following into the jinja2 template
                 # <img src="{{ image }}"/>
